@@ -1,0 +1,65 @@
+---
+title: "Practical Machine Learning Final Project"
+author: "Joey Nichols"
+date: "February 11, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(caret)
+```
+
+# Preprocessing data
+## Reading in data
+```{r}
+training = read.csv("pml-training.csv")
+training = training[,-1] #Remove ID Column
+testing = read.csv("pml-testing.csv")
+testing = testing[,-1] #Remove ID Column
+```
+
+## Removing columns with near zero variance
+There end up being 60 variables within the dataset that have nzv, they are removed accordingly.
+```{r}
+NZV = nearZeroVar(training, saveMetrics = T)
+training = training[,!NZV$nzv]
+testing = testing[,!NZV$nzv]
+```
+
+## Removing columns with majority NA values
+```{r }
+training = training[lapply(training, function(x) sum(is.na(x)) / length(x)) < 0.4]
+keep = colnames(training);
+testKeep = colnames(testing) %in% keep
+testing = testing[,testKeep]
+```
+
+## Dividing our training set into sub-training and sub-testing sets
+```{r }
+inTrain = createDataPartition(y=training$classe, p=0.6, list=F)
+subTrain = training[inTrain,];
+subTest = training[-inTrain, ];
+```
+
+# Building models
+## Model 1: Boosting model
+The resulting boosted model has accuracy of 99.68%.
+```{r }
+mod_gbm = train(classe ~ . ,data = subTrain, method = "gbm")
+plot(mod_gbm)
+confusionMatrix(subTest$classe, predict(mod_gbm, subTest))
+```
+
+## Model 2: Random Forests model
+The resulting boosted model has accuracy of 99.94%. This model will be used as the final model in this project meaning we will have an out-of-sample error rate of 0.06%, pretty
+```{r }
+mod_rf = train(classe ~ ., data = subTrain, method = "rf")
+plot(mod_rf)
+confusionMatrix(subTest$classe, predict(mod_rf, subTest))
+```
+
+# Using the Random Forest Model on Testing dataset
+```{r }
+predict(mod_rf, testing, type = "raw")
+```
